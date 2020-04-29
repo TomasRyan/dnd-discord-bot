@@ -117,6 +117,7 @@ def rollDice(request):
 #   input: nu,ber of the cap of the highest possible roll 
 #   returns a number of the result of the roll
 def roller(diceSize):
+    random.seed(datetime.datetime.now())
     time.sleep(0.01)
     rollResult = random.randrange(1, diceSize+1)
     print(rollResult)
