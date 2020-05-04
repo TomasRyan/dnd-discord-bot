@@ -10,6 +10,8 @@
 #   04/05   Version 1.1
 #       Added some server information, changed from the 
 #       default help text and cleaned up a lil
+#   04/05   Version 1.1.1
+#       added in printUser function
 #--------------------------------------------------------#
 
 
@@ -137,11 +139,16 @@ def printTime():
     now = datetime.datetime.now()
     print ("called on date and time : ")
     print (now.strftime("%Y-%m-%d %H:%M:%S"))
+    
+#   print the user object's name and id from the ctx for debug reasons
+def printUser(ctx):
+    print('Called by: ' + str(ctx.message.author))
+    print('Caller id: ' + str(ctx.message.id))
 #----------------------------
 @client.command()
 async def help(ctx):
     print('Help function ran')
-    print('Called by: ' + str(ctx.message.author))
+    printUser(ctx)
     printTime()
     helpOutput = "```Hello! \nThis bot is here to help you! :D \n"
     for command, helpText in helpInfo.items():
@@ -160,12 +167,16 @@ async def on_ready():
     print(client.user.name)
     print(client.user.id)
     print('------')
+    for server in client.guilds:
+        print("Server Name: " + str(server.name))
+        print("Server ID: " + str(server.id))
+    print('------')
 
 #   roll the wild table, and return the results of said roll and message the server the results
 @client.command()
 async def getWildMagicTable(ctx):
     print('Wild Magic table result function ran')
-    print('Called by: ' + ctx.message.author.name())
+    printUser(ctx)
     printTime()
     print('------')
     await ctx.send(rollTable(ctx))
@@ -174,7 +185,7 @@ async def getWildMagicTable(ctx):
 @client.command()
 async def rollWildTable(ctx):
     print('WildTable roll function ran')
-    print('Called by: ' + ctx.message.author.name())
+    printUser(ctx)
     printTime()
     print('------')
     await ctx.send(WildMagic(ctx))
@@ -183,7 +194,7 @@ async def rollWildTable(ctx):
 @client.command()
 async def roll(ctx, arg):
     print('Roll Dice function ran')
-    print('Called by: ' + ctx.message.author.name())
+    printUser(ctx)
     lowerCaseQury = str(arg).lower()
     diceParse = lowerCaseQury.split("d")
     maxRoll = int(diceParse[1])
