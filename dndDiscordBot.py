@@ -12,8 +12,19 @@
 #       default help text and cleaned up a lil
 #   04/05   Version 1.1.1
 #       added in printUser function
+#   04/05   Version 1.2
+#       added in per user settings, tides of chaos and 
+#       controlled chaos features. added todo list
 #--------------------------------------------------------#
-
+#   TO DO:
+#       Error Checking and Handling                     []
+#       Saving history                                  []
+#       database intergration                           []
+#       Wild Table lookup                               []
+#       Charecter stat macro                            []
+#       Custom prefix                                   []
+#       DM incorperations                               []
+##--------------------------------------------------------#
 
 import random
 import datetime
@@ -79,35 +90,89 @@ WildMagicTable = {
     "You regain all expended sorcery points.":99 }
 #
 helpInfo = {
-    "roll" : "              Roll whatever dice you want. use input &d& where you replace & with whatever numbers you want",
-    "getWildMagicTable" : " Return a result from the wild magic table",
-    "rollWildTable" : "     Roll 1d20 and if a natural 1 is rolled then roll on the wild magic table automatically"}
+    "roll" : "                  Roll whatever dice you want. use input &d& where you replace & with whatever numbers you want.",
+    "getWildMagicTable" : "     Roll on the Wild Magic Table.",
+    "rollWildTable" : "         Roll 1d20 for the chance of rolling on the wild Magic and if a natural 1 is rolled then roll on the wild magic table automatically.",
+    "tidesOfChaos" : "          use when rolling wildmagic due to tides Of Chaos, or when when gaining the advantage on a roll due to the feature.",
+    "checkTidesOfChaos" : "     check the current state of Tides of chaos.",
+    "checkControlledChaos":"    Check if controlled chaos is enabled.",
+    "changeControlledChaos":"   Enables Controlled Chaos if disabled, or enables it if its disabled."}
 #----------------------------
-#   sets the prefix for commands to ++
-client = commands.Bot(command_prefix='++', description='This is a bot beep boop')
+class user:
+    userName = str
+    userID = int
+    tidesOfChaosReady = False
+    controlledChaos = False
+    #   assign the name of the account and the account id to the user
+    def __init__(self, ctx):
+        self.userName = ctx.message.author
+        self.userID = ctx.message.author.id
+    #   comapares the author of ctx to the user to check if they are the same user
+    def compareUserID(self, ctx):
+        return self.userID == ctx.message.author.id
+    #   returns tidesOfChaosReady boolean value
+    def getTidesOfChaosState(self):
+        return self.tidesOfChaosReady
+    #   flips tidesOfChaosReady boolean value
+    def changeTidesOfChaosState(self):
+        if self.tidesOfChaosReady:
+            self.tidesOfChaosReady = False
+        else:
+            self.tidesOfChaosReady = True
+    #   returns controlledChaos boolean value
+    def getControlledChaosState(self):
+        return self.controlledChaos
+    #   flips controlledChaos boolean value
+    def changeControlledChaosState(self):
+        if self.controlledChaos:
+            self.controlledChaos = False
+        else:
+            self.controlledChaos = True
+    #   print user data
+    def printUserData(self):
+        print(self.userName)
+        print(self.userID)
+        print("Tides of Chaos boolean value: " + str(self.tidesOfChaosReady))
+        print("Controlled Chaos boolean value: " + str(self.controlledChaos))
+        
+prefix = '++'
+listOfUsers = []
+#----------------------------
+#   sets the prefix for commands to ++, or the variable prefix
+client = commands.Bot(command_prefix=prefix, description='This is a bot beep boop')
 client.remove_command('help')
 #----------------------------
 #   rolls a 1d20 and if its rolls a natual 1 then excecute rollTable(), returning the result of either
 def WildMagic(ctx):
     rollResult = roller(20)
     print(rollResult)
-    if rollResult == 1 :
+    if rollResult == 1:
         return rollTable(ctx)
     else:
         messageString = str(rollResult) + "\nYour power remains in check"
         return messageString
 
-#   rolls a d100, an then finds the result from the dictionary WildMagicTable, returing the string
+#   rolls a d100, an then finds the result from the dictionary WildMagicTable, returning the string
 def rollTable(ctx):
-    rollResult = roller(100)
-    tableNum = rollResult
-    print(rollResult)
-    if tableNum%2 == 0 :
-        tableNum = tableNum - 1
-    for result, x in WildMagicTable.items():
-       if x == tableNum:
-           print(result)
-           return result
+    # check controlled chaos and do the function twice if needed   
+    rollTableCount = 1
+    for users in listOfUsers:
+        if users.compareUserID(ctx):
+            if users.getControlledChaosState():
+                rollTableCount = 2
+    wildMagicText = '' 
+    for _ in range(rollTableCount):
+        rollResult = roller(100)
+        tableNum = rollResult
+        print(rollResult)
+        if tableNum%2 == 0 :
+            tableNum = tableNum - 1
+        for result, x in WildMagicTable.items():
+           if x == tableNum:
+               print(result)
+               wildMagicText = wildMagicText + str(result)
+               wildMagicText = wildMagicText +'\n\n'
+    return wildMagicText
            
 #   rolls x amount of dice of size y
 #   input: string of form "x"d"y" where x is the amount of dice to be rolled, y is the size of dice to be rolled 
@@ -125,7 +190,7 @@ def rollDice(request):
     return(total)
     
 #   rolls a dice by random chance up to the number passed to it (diceSize)
-#   input: nu,ber of the cap of the highest possible roll 
+#   input: number of the cap of the highest possible roll 
 #   returns a number of the result of the roll
 def roller(diceSize):
     random.seed(datetime.datetime.now())
@@ -143,14 +208,24 @@ def printTime():
 #   print the user object's name and id from the ctx for debug reasons
 def printUser(ctx):
     print('Called by: ' + str(ctx.message.author))
-    print('Caller id: ' + str(ctx.message.id))
+    print('Caller id: ' + str(ctx.message.author.id))
+    printTime()
+    
+#   check if user exists and makes a new one if it doesnt
+def userCheck(ctx):
+    isNewUser = True
+    for users in listOfUsers:
+        if users.compareUserID(ctx):
+            isNewUser = False
+    if isNewUser:
+        listOfUsers.append(user(ctx))
 #----------------------------
 @client.command()
+#   Help command
 async def help(ctx):
     print('Help function ran')
     printUser(ctx)
-    printTime()
-    helpOutput = "```Hello! \nThis bot is here to help you! :D \n"
+    helpOutput = "```Hello! \nThis bot is here to help you with dnd stuff, currently tuned to help with Wild magic sorcerer :D \n"
     for command, helpText in helpInfo.items():
         helpOutput = helpOutput + command + ":    " + helpText + "\n"
     helpOutput = helpOutput + "```"
@@ -167,7 +242,7 @@ async def on_ready():
     print(client.user.name)
     print(client.user.id)
     print('------')
-    for server in client.guilds:
+    for server in client.guilds: # for each server connected to
         print("Server Name: " + str(server.name))
         print("Server ID: " + str(server.id))
     print('------')
@@ -177,7 +252,6 @@ async def on_ready():
 async def getWildMagicTable(ctx):
     print('Wild Magic table result function ran')
     printUser(ctx)
-    printTime()
     print('------')
     await ctx.send(rollTable(ctx))
     
@@ -186,7 +260,6 @@ async def getWildMagicTable(ctx):
 async def rollWildTable(ctx):
     print('WildTable roll function ran')
     printUser(ctx)
-    printTime()
     print('------')
     await ctx.send(WildMagic(ctx))
 
@@ -213,6 +286,77 @@ async def roll(ctx, arg):
     resultString = resultString + "=" + str(sum(rolls))
     print('------')
     await ctx.send(resultString)
+    
+#   using the tidesOfChaosReady bool to see if 
+@client.command()
+async def tidesOfChaos(ctx):
+    print('tidesOfChaos function ran')
+    printUser(ctx)
+    userCheck(ctx)
+    result = ''
+    for users in listOfUsers:
+        if users.compareUserID(ctx):
+            if users.getTidesOfChaosState():
+                result = str(rollTable(ctx))
+                users.changeTidesOfChaosState()
+            else:
+                users.changeTidesOfChaosState()
+                result = 'The magic is due to go crazy soon'
+    print(result)
+    print('------')
+    await ctx.send(result)
+    
+#   using the tidesOfChaosReady bool and let the user know the current state of 
+@client.command()
+async def checkTidesOfChaos(ctx):
+    print('checkTidesOfChaos function ran')
+    printUser(ctx)
+    userCheck(ctx)
+    result = ''
+    for users in listOfUsers:
+        if users.compareUserID(ctx):
+            if users.getTidesOfChaosState():
+                result = 'Tides Of Chaos is waiting on a table roll or a long rest'
+            else:
+                result = 'Tides Of Chaos is available for use'
+    print(result)
+    print('------')
+    await ctx.send(result)
+
+#   returns if Tides of Chaos is enabled for the user
+@client.command()
+async def checkControlledChaos(ctx):
+    print('checkControlledChaos function ran')
+    printUser(ctx)
+    userCheck(ctx)
+    result = ''
+    for users in listOfUsers:
+        if users.compareUserID(ctx):
+            if users.getControlledChaosState():
+                result = 'Controlled Chaos is enabled'
+            else:
+                result = 'Controlled chaos is disabled'
+    print(result)
+    print('------')
+    await ctx.send(result)
+    
+#   returns if Tides of Chaos is enabled for the user
+@client.command()
+async def changeControlledChaos(ctx):
+    print('changeControlledChaos function ran')
+    printUser(ctx)
+    userCheck(ctx)
+    result = ''
+    for users in listOfUsers:
+        if users.compareUserID(ctx):
+            users.changeControlledChaosState()
+            if users.getControlledChaosState():
+                result = 'Controlled Chaos is now enabled'
+            else:
+                result = 'Controlled chaos is now disabled'
+    print(result)
+    print('------')
+    await ctx.send(result)
 #-----------------------------
 
 client.run("")
