@@ -6,6 +6,10 @@
 #   29/4    version 1.0
 #       Initial version created, has a dice rolling 
 #       function and a wildmagic table function
+#
+#   04/05   Version 1.1
+#       Added some server information, changed from the 
+#       default help text and cleaned up a lil
 #--------------------------------------------------------#
 
 
@@ -20,6 +24,7 @@ client = discord.Client()
 #----------------------------
 #wildmagic table
 #----------------------------
+#   Dictionary of each entry of the wild magic table with format 'Text:oddNumberOfEntry'"
 WildMagicTable = {
     "Roll on this table at the start of each of your turns for the next minute, ignoring this result on subsequent rolls.": 1,
     "For the next minute, you can see any invisible creature if you have line of sight to it.":3,
@@ -70,10 +75,15 @@ WildMagicTable = {
     "You and all creatures within 30 feet of you gain vulnerability to piercing damage for the next minute.":95,
     "You are surrounded by faint, ethereal music for the next minute.":97,
     "You regain all expended sorcery points.":99 }
-    
+#
+helpInfo = {
+    "roll" : "              Roll whatever dice you want. use input &d& where you replace & with whatever numbers you want",
+    "getWildMagicTable" : " Return a result from the wild magic table",
+    "rollWildTable" : "     Roll 1d20 and if a natural 1 is rolled then roll on the wild magic table automatically"}
 #----------------------------
 #   sets the prefix for commands to ++
 client = commands.Bot(command_prefix='++', description='This is a bot beep boop')
+client.remove_command('help')
 #----------------------------
 #   rolls a 1d20 and if its rolls a natual 1 then excecute rollTable(), returning the result of either
 def WildMagic(ctx):
@@ -92,7 +102,6 @@ def rollTable(ctx):
     print(rollResult)
     if tableNum%2 == 0 :
         tableNum = tableNum - 1
-    print(tableNum)
     for result, x in WildMagicTable.items():
        if x == tableNum:
            print(result)
@@ -122,7 +131,27 @@ def roller(diceSize):
     rollResult = random.randrange(1, diceSize+1)
     print(rollResult)
     return(rollResult)
+
+#   print The current Date and time for debug reasons
+def printTime():
+    now = datetime.datetime.now()
+    print ("called on date and time : ")
+    print (now.strftime("%Y-%m-%d %H:%M:%S"))
 #----------------------------
+@client.command()
+async def help(ctx):
+    print('Help function ran')
+    print('Called by: ' + str(ctx.message.author))
+    printTime()
+    helpOutput = "```Hello! \nThis bot is here to help you! :D \n"
+    for command, helpText in helpInfo.items():
+        helpOutput = helpOutput + command + ":    " + helpText + "\n"
+    helpOutput = helpOutput + "```"
+    print(helpOutput)
+    print('------')
+    await ctx.send(helpOutput)
+    
+#   On login of the bot print to cmd window that we have logged in and where
 @client.event
 async def on_ready():
     print('------')
@@ -131,16 +160,30 @@ async def on_ready():
     print(client.user.name)
     print(client.user.id)
     print('------')
-    await ctx.send("I have Joined and ready to do things")
 
 #   roll the wild table, and return the results of said roll and message the server the results
 @client.command()
+async def getWildMagicTable(ctx):
+    print('Wild Magic table result function ran')
+    print('Called by: ' + ctx.message.author.name())
+    printTime()
+    print('------')
+    await ctx.send(rollTable(ctx))
+    
+#   roll the wild table, and return the results of said roll and message the server the results
+@client.command()
 async def rollWildTable(ctx):
+    print('WildTable roll function ran')
+    print('Called by: ' + ctx.message.author.name())
+    printTime()
+    print('------')
     await ctx.send(WildMagic(ctx))
 
 #   takes a roll qurey and prints the results
 @client.command()
 async def roll(ctx, arg):
+    print('Roll Dice function ran')
+    print('Called by: ' + ctx.message.author.name())
     lowerCaseQury = str(arg).lower()
     diceParse = lowerCaseQury.split("d")
     maxRoll = int(diceParse[1])
@@ -157,6 +200,7 @@ async def roll(ctx, arg):
             resultString = resultString + str(i) + "+"
     resultString = resultString[:-1]
     resultString = resultString + "=" + str(sum(rolls))
+    print('------')
     await ctx.send(resultString)
 #-----------------------------
 
