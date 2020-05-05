@@ -1,4 +1,4 @@
-#--------------------------------------------------------#
+##-------------------------------------------------------#
 #   Tomas Ryan  
 #   TomasRyanMann@gmail.com
 #   dndDiscordBot
@@ -10,32 +10,44 @@
 #   04/05   Version 1.1
 #       Added some server information, changed from the 
 #       default help text and cleaned up a lil
+#
 #   04/05   Version 1.1.1
 #       added in printUser function
+#
 #   04/05   Version 1.2
 #       added in per user settings, tides of chaos and 
 #       controlled chaos features. added todo list
+#   05/05   Version 1.3
+#       added in sqlite intergration for simple database 
+#       usage and history of users use of the bot
 #--------------------------------------------------------#
 #   TO DO:
 #       Error Checking and Handling                     []
-#       Saving history                                  []
-#       database intergration                           []
+#       Saving history                                  [x]
+#       database intergration                           [x]
 #       Wild Table lookup                               []
 #       Charecter stat macro                            []
 #       Custom prefix                                   []
 #       DM incorperations                               []
-##--------------------------------------------------------#
+##-------------------------------------------------------#
 
 import random
 import datetime
 import time
+import logging
 #
 import discord
 from discord.ext import commands
 #
+import sqlite3
+#
 client = discord.Client()
+#
+conn = sqlite3.connect('dndDiscordBotdb.db')
+c = conn.cursor()
+
 #----------------------------
-#wildmagic table
+#   wildmagic table
 #----------------------------
 #   Dictionary of each entry of the wild magic table with format 'Text:oddNumberOfEntry'"
 WildMagicTable = {
@@ -88,7 +100,7 @@ WildMagicTable = {
     "You and all creatures within 30 feet of you gain vulnerability to piercing damage for the next minute.":95,
     "You are surrounded by faint, ethereal music for the next minute.":97,
     "You regain all expended sorcery points.":99 }
-#
+#   The text for the custom help text command
 helpInfo = {
     "roll" : "                  Roll whatever dice you want. use input &d& where you replace & with whatever numbers you want.",
     "getWildMagicTable" : "     Roll on the Wild Magic Table.",
@@ -96,8 +108,10 @@ helpInfo = {
     "tidesOfChaos" : "          use when rolling wildmagic due to tides Of Chaos, or when when gaining the advantage on a roll due to the feature.",
     "checkTidesOfChaos" : "     check the current state of Tides of chaos.",
     "checkControlledChaos":"    Check if controlled chaos is enabled.",
-    "changeControlledChaos":"   Enables Controlled Chaos if disabled, or enables it if its disabled."}
+    "changeControlledChaos":"   Enables Controlled Chaos if disabled, or enables it if its disabled.",
+    "showHistory":"             Shows history of commands used and there results where available"}
 #----------------------------
+#
 class user:
     userName = str
     userID = int
@@ -134,7 +148,23 @@ class user:
         print(self.userID)
         print("Tides of Chaos boolean value: " + str(self.tidesOfChaosReady))
         print("Controlled Chaos boolean value: " + str(self.controlledChaos))
-        
+
+# Create tableto store history
+c.execute('''CREATE TABLE if not exists CommandHistory
+             (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT , 
+                userID varchar(20) not null, 
+                time datetime not null, 
+                commandName varchar(20) not null, 
+                commandResult varchar(1000))''')
+                
+#   logging
+#   sets up discords logging and prints it into file dndDiscordBotLogs.log, and adds a event handler for logging
+logger = logging.getLogger('discord')
+logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler(filename='dndDiscordBotLogs.log', encoding='utf-8', mode='w')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(handler)        
+
 prefix = '++'
 listOfUsers = []
 #----------------------------
@@ -219,6 +249,20 @@ def userCheck(ctx):
             isNewUser = False
     if isNewUser:
         listOfUsers.append(user(ctx))
+        
+#   Database
+#   Insert Into database user id and the result of the input
+def insertIntoCommandHistory(ctx, commandName, result):
+    c.execute("INSERT INTO CommandHistory (userID, time, commandName, commandResult) VALUES (?, datetime('now'),?, ?)", (str(ctx.message.author.id), commandName, str(result)))
+    conn.commit()
+    
+#   print out users result history
+def printUsersCommandHistory(ctx):
+    history = ""
+    for row in c.execute('SELECT commandName, commandResult FROM CommandHistory where userID=?', (str(ctx.message.author.id),)):
+        print(row) # row is a touple object of everything returned
+        history = history + str(row[0]) + ": " + str(row[1]) + "\n"
+    return history
 #----------------------------
 @client.command()
 #   Help command
@@ -231,6 +275,7 @@ async def help(ctx):
     helpOutput = helpOutput + "```"
     print(helpOutput)
     print('------')
+    insertIntoCommandHistory(ctx, "Help", "")
     await ctx.send(helpOutput)
     
 #   On login of the bot print to cmd window that we have logged in and where
@@ -253,7 +298,9 @@ async def getWildMagicTable(ctx):
     print('Wild Magic table result function ran')
     printUser(ctx)
     print('------')
-    await ctx.send(rollTable(ctx))
+    result = rollTable(ctx)
+    insertIntoCommandHistory(ctx, "getWildMagicTable", result)
+    await ctx.send(result)
     
 #   roll the wild table, and return the results of said roll and message the server the results
 @client.command()
@@ -261,7 +308,9 @@ async def rollWildTable(ctx):
     print('WildTable roll function ran')
     printUser(ctx)
     print('------')
-    await ctx.send(WildMagic(ctx))
+    result = WildMagic(ctx)
+    insertIntoCommandHistory(ctx, "rollWildTable", result)
+    await ctx.send(result)
 
 #   takes a roll qurey and prints the results
 @client.command()
@@ -285,6 +334,7 @@ async def roll(ctx, arg):
     resultString = resultString[:-1]
     resultString = resultString + "=" + str(sum(rolls))
     print('------')
+    insertIntoCommandHistory(ctx, "roll", resultString)
     await ctx.send(resultString)
     
 #   using the tidesOfChaosReady bool to see if 
@@ -304,6 +354,7 @@ async def tidesOfChaos(ctx):
                 result = 'The magic is due to go crazy soon'
     print(result)
     print('------')
+    insertIntoCommandHistory(ctx, "tidesOfChaos", result)
     await ctx.send(result)
     
 #   using the tidesOfChaosReady bool and let the user know the current state of 
@@ -321,6 +372,7 @@ async def checkTidesOfChaos(ctx):
                 result = 'Tides Of Chaos is available for use'
     print(result)
     print('------')
+    insertIntoCommandHistory(ctx, "checkTidesOfChaos", result)
     await ctx.send(result)
 
 #   returns if Tides of Chaos is enabled for the user
@@ -338,6 +390,7 @@ async def checkControlledChaos(ctx):
                 result = 'Controlled chaos is disabled'
     print(result)
     print('------')
+    insertIntoCommandHistory(ctx, "checkControlledChaos", result)
     await ctx.send(result)
     
 #   returns if Tides of Chaos is enabled for the user
@@ -356,7 +409,13 @@ async def changeControlledChaos(ctx):
                 result = 'Controlled chaos is now disabled'
     print(result)
     print('------')
+    insertIntoCommandHistory(ctx, "changeControlledChaos", result)
     await ctx.send(result)
+    
+#   prints out users command history
+@client.command()
+async def showHistory(ctx):
+    await ctx.send(str(printUsersCommandHistory(ctx)))
 #-----------------------------
 
 client.run("")
