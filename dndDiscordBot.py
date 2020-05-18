@@ -20,15 +20,18 @@
 #   05/05   Version 1.3
 #       added in sqlite intergration for simple database 
 #       usage and history of users use of the bot
+#   18/05   Version 1.4
+#       added in wildMagic lookup functionality and a 
+#       quick 6d4h3 macro for quick charecter stats
 #--------------------------------------------------------#
 #   TO DO:
-#       Error Checking and Handling                     []
+#       Error Checking and Handling                     [ ]
 #       Saving history                                  [x]
 #       database intergration                           [x]
-#       Wild Table lookup                               []
-#       Charecter stat macro                            []
-#       Custom prefix                                   []
-#       DM incorperations                               []
+#       Wild Table lookup                               [x]
+#       Charecter stat macro                            [x]
+#       Custom prefix                                   [ ]
+#       DM incorperations                               [ ]
 ##-------------------------------------------------------#
 
 import random
@@ -104,7 +107,8 @@ WildMagicTable = {
 helpInfo = {
     "roll" : "                  Roll whatever dice you want. use input &d& where you replace & with whatever numbers you want.",
     "getWildMagicTable" : "     Roll on the Wild Magic Table.",
-    "rollWildTable" : "         Roll 1d20 for the chance of rolling on the wild Magic and if a natural 1 is rolled then roll on the wild magic table automatically.",
+    "rollWildTable" : "         Roll 1d20 for the chance of rolling on the Wild Magic and if a natural 1 is rolled then roll on the wild magic table automatically.",
+    "checkWildMagicTable " :"   Check the result of a certain roll on the Wild Magic table",
     "tidesOfChaos" : "          use when rolling wildmagic due to tides Of Chaos, or when when gaining the advantage on a roll due to the feature.",
     "checkTidesOfChaos" : "     check the current state of Tides of chaos.",
     "checkControlledChaos":"    Check if controlled chaos is enabled.",
@@ -151,11 +155,12 @@ class user:
 
 # Create tableto store history
 c.execute('''CREATE TABLE if not exists CommandHistory
-             (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT , 
+             (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
                 userID varchar(20) not null, 
                 time datetime not null, 
                 commandName varchar(20) not null, 
                 commandResult varchar(1000))''')
+               
                 
 #   logging
 #   sets up discords logging and prints it into file dndDiscordBotLogs.log, and adds a event handler for logging
@@ -259,7 +264,7 @@ def insertIntoCommandHistory(ctx, commandName, result):
 #   print out users result history
 def printUsersCommandHistory(ctx):
     history = ""
-    for row in c.execute('SELECT commandName, commandResult FROM CommandHistory where userID=?', (str(ctx.message.author.id),)):
+    for row in c.execute('SELECT commandName, commandResult FROM CommandHistory where userID=? order by time', (str(ctx.message.author.id),)):
         print(row) # row is a touple object of everything returned
         history = history + str(row[0]) + ": " + str(row[1]) + "\n"
     return history
@@ -312,6 +317,25 @@ async def rollWildTable(ctx):
     insertIntoCommandHistory(ctx, "rollWildTable", result)
     await ctx.send(result)
 
+#   Look up the wild magic table the result of a roll 
+@client.command()
+async def checkWildMagicTable(ctx, arg):
+    print('checkWildMagicTable function ran')
+    printUser(ctx)
+    tableNum = int(arg)
+    if  0 < tableNum <= 100:
+        if tableNum%2 == 0 :
+            tableNum = tableNum - 1
+        for result, x in WildMagicTable.items():
+           if x == tableNum:
+               print(result)
+               wildMagicText = str(result)
+        print('------')
+        insertIntoCommandHistory(ctx, "checkWildMagicTable", wildMagicText)
+        await ctx.send(wildMagicText)
+    else:
+        await ctx.send("please enter a valid input")
+ 
 #   takes a roll qurey and prints the results
 @client.command()
 async def roll(ctx, arg):
@@ -411,11 +435,40 @@ async def changeControlledChaos(ctx):
     print('------')
     insertIntoCommandHistory(ctx, "changeControlledChaos", result)
     await ctx.send(result)
+
+#   rolls charecter stats
+@client.command()
+async def rollCharecterStats(ctx):
+ print('rollCharecterStats function ran')
+    rollResults = []
+    for _ in range(6):
+        rolls = [] 
+        for _ in range(4):
+            rolls.append(roller(6))
+        rolls.sort(reverse=True)
+        rollResults.append(rolls)
+    resultDictionary = {    
+    sum(rollResults[0][:3]): rollResults[0],
+    sum(rollResults[1][:3]): rollResults[1],
+    sum(rollResults[2][:3]): rollResults[2],
+    sum(rollResults[3][:3]): rollResults[3],
+    sum(rollResults[4][:3]): rollResults[4],
+    sum(rollResults[5][:3]): rollResults[5]}
+    print(resultDictionary)
+    rollResultString = ""
+    for rollResult, rollList in resultDictionary.items():
+        rollResultString += "***" + str(rollResult) + "***" + " = "
+        rollResultString += str(rollList[0]) + " + " + str(rollList[1]) + " + " + str(rollList[2])
+        rollResultString += "\n"
+    print(rollResultString)
+    insertIntoCommandHistory(ctx, "rollCharecterStats", rollResultString)
+    await ctx.send(rollResultString)
     
+
 #   prints out users command history
 @client.command()
 async def showHistory(ctx):
     await ctx.send(str(printUsersCommandHistory(ctx)))
 #-----------------------------
 
-client.run("")
+client.run("MzA1MTc3MzExMzY2MzQ4ODEx.XqboxA.ZX2kaZqbTzcBHTZcppbkRWZud4A")
