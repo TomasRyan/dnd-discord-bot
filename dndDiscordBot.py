@@ -1,5 +1,5 @@
 ##-------------------------------------------------------#
-#   Tomas Ryan  
+#   Tomás Ryan  
 #   TomasRyanMann@gmail.com
 #   dndDiscordBot
 #--------------------------------------------------------#
@@ -23,6 +23,9 @@
 #   18/05   Version 1.4
 #       added in wildMagic lookup functionality and a 
 #       quick 6d4h3 macro for quick charecter stats
+#   25/05   Version 1.5
+#       cleaned up the roll command, started error handling
+#       implentation with roll command
 #--------------------------------------------------------#
 #   TO DO:
 #       Error Checking and Handling                     [ ]
@@ -174,7 +177,7 @@ prefix = '++'
 listOfUsers = []
 #----------------------------
 #   sets the prefix for commands to ++, or the variable prefix
-client = commands.Bot(command_prefix=prefix, description='This is a bot beep boop')
+client = commands.Bot(command_prefix=prefix, description='This is a bot beep boop', case_insensitive=True)
 client.remove_command('help')
 #----------------------------
 #   rolls a 1d20 and if its rolls a natual 1 then excecute rollTable(), returning the result of either
@@ -230,7 +233,7 @@ def rollDice(request):
 def roller(diceSize):
     random.seed(datetime.datetime.now())
     time.sleep(0.01)
-    rollResult = random.randrange(1, diceSize+1)
+    rollResult = random.randrange(1, int(diceSize)+1)
     print(rollResult)
     return(rollResult)
 
@@ -268,6 +271,21 @@ def printUsersCommandHistory(ctx):
         print(row) # row is a touple object of everything returned
         history = history + str(row[0]) + ": " + str(row[1]) + "\n"
     return history
+    
+#   giving the dice value and the die size, returns a string of annotated
+#   result changed on if teh value entered is 1 or the die Size
+def highLowRollChecker(value, cap):
+    resultString = ""
+    if value == 1 :
+        resultString = resultString + "*" + str(value) + "*" + " + "
+    elif value == cap:
+        resultString = resultString + "**" + str(value) + "**" + " + "
+    else:
+        resultString = resultString + str(value) + " + "
+    print(resultString)
+    return resultString
+
+#
 #----------------------------
 @client.command()
 #   Help command
@@ -317,7 +335,7 @@ async def rollWildTable(ctx):
     insertIntoCommandHistory(ctx, "rollWildTable", result)
     await ctx.send(result)
 
-#   Look up the wild magic table the result of a roll 
+#   Look up the wild magic table with a input
 @client.command()
 async def checkWildMagicTable(ctx, arg):
     print('checkWildMagicTable function ran')
@@ -338,30 +356,36 @@ async def checkWildMagicTable(ctx, arg):
  
 #   takes a roll qurey and prints the results
 @client.command()
-async def roll(ctx, arg):
+async def roll(ctx, arg = "1d20"):
     print('Roll Dice function ran')
     printUser(ctx)
     lowerCaseQury = str(arg).lower()
     diceParse = lowerCaseQury.split("d")
+    # get the size of dice to be rolled
     maxRoll = int(diceParse[1])
-    #
+    # get a list of the roll results
     rolls = rollDice(arg)
-    #
-    resultString = ""
+    # print out the amount of dice to be rolled
+    resultString = "Rolling " + str(arg) + ":\n"
+    # add each roll to the resultString, formatting with highLowRollChecker
     for i in rolls:
-        if i == 1 :
-            resultString = resultString + "*" + str(i) + "*" + "+"
-        elif i == maxRoll:
-            resultString = resultString + "**" + str(i) + "**" + "+"
-        else:
-            resultString = resultString + str(i) + "+"
-    resultString = resultString[:-1]
-    resultString = resultString + "=" + str(sum(rolls))
+        resultString += highLowRollChecker(i, maxRoll)
+    # remove the " + " from the end of the string
+    resultString = resultString[:-3]
+    # if more than one roll, add them all together
+    if len(rolls) > 1:
+        resultString = resultString + " = " + str(sum(rolls))
     print('------')
     insertIntoCommandHistory(ctx, "roll", resultString)
+    print(resultString)
     await ctx.send(resultString)
     
 #   using the tidesOfChaosReady bool to see if 
+async def rollError(ctx, error):
+    await ctx.send("Something Has gone wrong")
+
+    
+#   flips a boolean in the player class called  
 @client.command()
 async def tidesOfChaos(ctx):
     print('tidesOfChaos function ran')
@@ -382,6 +406,7 @@ async def tidesOfChaos(ctx):
     await ctx.send(result)
     
 #   using the tidesOfChaosReady bool and let the user know the current state of 
+#   Tides of chaose sorcerer class feature, 
 @client.command()
 async def checkTidesOfChaos(ctx):
     print('checkTidesOfChaos function ran')
@@ -439,7 +464,7 @@ async def changeControlledChaos(ctx):
 #   rolls charecter stats
 @client.command()
 async def rollCharecterStats(ctx):
- print('rollCharecterStats function ran')
+    print('rollCharecterStats function ran')
     rollResults = []
     for _ in range(6):
         rolls = [] 
@@ -454,7 +479,6 @@ async def rollCharecterStats(ctx):
     sum(rollResults[3][:3]): rollResults[3],
     sum(rollResults[4][:3]): rollResults[4],
     sum(rollResults[5][:3]): rollResults[5]}
-    print(resultDictionary)
     rollResultString = ""
     for rollResult, rollList in resultDictionary.items():
         rollResultString += "***" + str(rollResult) + "***" + " = "
@@ -471,4 +495,4 @@ async def showHistory(ctx):
     await ctx.send(str(printUsersCommandHistory(ctx)))
 #-----------------------------
 
-client.run("MzA1MTc3MzExMzY2MzQ4ODEx.XqboxA.ZX2kaZqbTzcBHTZcppbkRWZud4A")
+client.run("MzA1MTc3MzExMzY2MzQ4ODEx.XsLGQA.o_kvkyMH9YHR98HB096n51U4x54")
